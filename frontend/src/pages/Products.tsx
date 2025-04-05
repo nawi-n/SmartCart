@@ -1,120 +1,135 @@
-import { useState } from 'react';
-import { useProducts } from '../hooks/useProducts';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ProductProfile } from '../api/client';
 import ProductCard from '../components/ProductCard';
+import ChatAssistant from '../components/ChatAssistant';
+import VoiceSearch from '../components/VoiceSearch';
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  image_url?: string;
-}
-
-const Products = () => {
-  const { data: products, isLoading, error } = useProducts();
+const Products: React.FC = () => {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState<ProductProfile[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showChatAssistant, setShowChatAssistant] = useState(false);
 
-  const categories: string[] = Array.from(
-    new Set(products?.map((product: Product) => product.category) || [])
-  );
+  // Fetch products from the backend
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/products');
+        const data = await response.json();
+        setProducts(data.data || []);
+      } catch (err) {
+        setError('Failed to fetch products. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredProducts = products?.filter((product: Product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      !selectedCategory || product.category === selectedCategory;
+    fetchProducts();
+  }, []);
+
+  // Get unique categories from products
+  const categories = ['all', ...new Set(products.map(product => product.category))];
+
+  // Filter products based on search and category
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-red-600">Error loading products</h2>
-        <p className="mt-2 text-gray-600">
-          Please try refreshing the page or contact support if the problem persists.
-        </p>
-      </div>
-    );
-  }
+  const handleVoiceSearch = (transcript: string) => {
+    setSearchTerm(transcript);
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">All Products</h1>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-          </div>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="input"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Shop Products</h1>
+        <button
+          onClick={() => setShowChatAssistant(!showChatAssistant)}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          {showChatAssistant ? 'Hide Assistant' : 'Shopping Assistant'}
+        </button>
       </div>
 
-      {filteredProducts?.length === 0 ? (
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-900">No products found</h2>
-          <p className="mt-2 text-gray-600">
-            Try adjusting your search or filter criteria.
-          </p>
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="w-full md:w-3/4">
+          {/* Search and Filter Section */}
+          <div className="mb-8 flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products..."
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+              <VoiceSearch onTranscript={handleVoiceSearch} />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Products Grid */}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce" />
+                <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce delay-100" />
+                <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce delay-200" />
+              </div>
+            </div>
+          ) : error ? (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  showPsychographicMatch={true}
+                />
+              ))}
+            </div>
+          )}
+
+          {!loading && filteredProducts.length === 0 && (
+            <p className="text-center text-gray-600 py-8">
+              No products found. Try adjusting your search or filters.
+            </p>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts?.map((product: Product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              description={product.description}
-              price={product.price}
-              category={product.category}
-              imageUrl={product.image_url}
-            />
-          ))}
-        </div>
-      )}
+
+        {/* Chat Assistant Sidebar */}
+        {showChatAssistant && (
+          <div className="w-full md:w-1/4">
+            <ChatAssistant customerId="current-user" />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

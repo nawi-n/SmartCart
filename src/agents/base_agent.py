@@ -10,7 +10,7 @@ class BaseAgent(ABC):
     def __init__(self):
         # Initialize Gemini API
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-2.0-flash-001')
         
     @abstractmethod
     async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
