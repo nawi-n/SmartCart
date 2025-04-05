@@ -2,12 +2,79 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-export const api = axios.create({
+export interface ProductProfile {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  description: string;
+  price: number;
+  features: string[];
+  unique_selling_points: string[];
+  price_point: string;
+  quality_level: string;
+  mood_tags: string[];
+  story: string;
+  psychographic_match?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerPersona {
+  id: string;
+  name: string;
+  age: number;
+  occupation: string;
+  interests: string[];
+  psychographic_traits?: string[];
+  behavioral_patterns?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerBehavior {
+  viewed_products: string[];
+  time_spent: Record<string, number>;
+  search_history: string[];
+  category_interests: Record<string, number>;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+}
+
+const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+export const generateCustomerPersona = async (data: Partial<CustomerPersona>) => {
+  const response = await client.post<ApiResponse<CustomerPersona>>('/customer/persona', data);
+  return response.data;
+};
+
+export const getProducts = async () => {
+  const response = await client.get<ApiResponse<ProductProfile[]>>('/products');
+  return response.data;
+};
+
+export const updateCustomerBehavior = async (data: CustomerBehavior) => {
+  const response = await client.post<ApiResponse<CustomerBehavior>>('/customer/behavior', data);
+  return response.data;
+};
+
+export const getRecommendations = async (customerId: string) => {
+  const response = await client.get<ApiResponse<ProductProfile[]>>(`/recommendations/${customerId}`);
+  return response.data;
+};
+
+export const getProductDetails = async (productId: string) => {
+  const response = await client.get<ApiResponse<ProductProfile>>(`/products/${productId}`);
+  return response.data;
+};
 
 // Customer Agent Interfaces
 export interface CustomerPersona {
@@ -26,72 +93,17 @@ export interface CustomerPersona {
 }
 
 // Product Agent Interfaces
-export interface ProductProfile {
-  id: string;
-  name: string;
-  brand: string;
-  category: string;
-  features: string[];
-  target_audience: string[];
-  price_point: string;
-  unique_selling_points: string[];
-  quality_level: string;
-  mood_tags: string[];
-  story: string;
-  psychographic_match_score?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Recommendation Agent Interfaces
-export interface Recommendation {
-  product_id: string;
-  score: number;
-  explanation: string;
-  mood_match?: number;
-  psychographic_match?: number;
-  behavioral_match?: number;
-}
-
-export interface ApiResponse<T> {
-  status: string;
-  data: T;
-}
-
-// Customer Agent APIs
-export const generateCustomerPersona = async (customerData: any): Promise<ApiResponse<CustomerPersona>> => {
-  const response = await api.post('/customer/persona', customerData);
-  return response.data;
-};
-
-export const updateCustomerMood = async (customerId: string, mood: string): Promise<ApiResponse<CustomerPersona>> => {
-  const response = await api.post(`/customer/${customerId}/mood`, { mood });
-  return response.data;
-};
-
-// Product Agent APIs
 export const generateProductProfile = async (productData: any): Promise<ApiResponse<ProductProfile>> => {
-  const response = await api.post('/product/profile', productData);
+  const response = await client.post('/product/profile', productData);
   return response.data;
 };
 
 export const generateProductStory = async (productId: string): Promise<ApiResponse<{ story: string }>> => {
-  const response = await api.post('/product/story', { product_id: productId });
+  const response = await client.post('/product/story', { product_id: productId });
   return response.data;
 };
 
-// Recommendation Agent APIs
-export const getRecommendations = async (
-  customerId: string,
-  mood?: string
-): Promise<ApiResponse<Recommendation[]>> => {
-  const response = await api.post('/recommendations', { 
-    customer_id: customerId,
-    mood: mood 
-  });
-  return response.data;
-};
-
+// Recommendation Agent Interfaces
 export const getRecommendationExplanation = async (
   customerId: string, 
   productId: string
@@ -100,7 +112,7 @@ export const getRecommendationExplanation = async (
   psychographic_match: number;
   mood_match?: number;
 }>> => {
-  const response = await api.post('/recommendations/explain', {
+  const response = await client.post('/recommendations/explain', {
     customer_id: customerId,
     product_id: productId,
   });
@@ -116,7 +128,7 @@ export const submitRecommendationFeedback = async (
     explanation_helpful?: boolean;
   }
 ): Promise<ApiResponse<{ success: boolean }>> => {
-  const response = await api.post('/recommendations/feedback', {
+  const response = await client.post('/recommendations/feedback', {
     customer_id: customerId,
     product_id: productId,
     ...feedback,
@@ -132,7 +144,7 @@ export const getChatResponse = async (
   response: string;
   recommendations?: ProductProfile[];
 }>> => {
-  const response = await api.post('/chat/message', {
+  const response = await client.post('/chat/message', {
     customer_id: customerId,
     message: message,
   });

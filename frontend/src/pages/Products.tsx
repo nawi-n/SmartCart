@@ -1,29 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProductProfile } from '../api/client';
 import ProductCard from '../components/ProductCard';
 import ChatAssistant from '../components/ChatAssistant';
 import VoiceSearch from '../components/VoiceSearch';
+import { getProducts, updateCustomerBehavior } from '../api/client';
+import debounce from 'lodash/debounce';
 
 const Products: React.FC = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductProfile[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showChatAssistant, setShowChatAssistant] = useState(false);
+  const [behaviorData, setBehaviorData] = useState({
+    viewedProducts: new Set<string>(),
+    timeSpentOnProducts: {} as Record<string, number>,
+    searchHistory: [] as string[],
+    categoryInterests: {} as Record<string, number>,
+    lastProductView: Date.now(),
+  });
 
-  // Fetch products from the backend
+  // Fetch products on component mount
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
       try {
-        const response = await fetch('http://localhost:8000/api/v1/products');
-        const data = await response.json();
-        setProducts(data.data || []);
+        const response = await getProducts();
+        setProducts(response.data);
       } catch (err) {
-        setError('Failed to fetch products. Please try again.');
+        console.error('Failed to fetch products:', err);
+        setError('Failed to load products. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -32,21 +40,123 @@ const Products: React.FC = () => {
     fetchProducts();
   }, []);
 
-  // Get unique categories from products
-  const categories = ['all', ...new Set(products.map(product => product.category))];
+  // Track product views and time spent
+  const trackProductView = useCallback((productId: string) => {
+    setBehaviorData(prev => {
+      const now = Date.now();
+      const timeSpent = prev.timeSpentOnProducts[productId] || 0;
+      const timeDiff = now - prev.lastProductView;
+      
+      // Update time spent on previous product if applicable
+      const updatedTimeSpent = { ...prev.timeSpentOnProducts };
+      if (prev.viewedProducts.size > 0) {
+        const lastViewedProduct = Array.from(prev.viewedProducts).pop();
+        if (lastViewedProduct) {
+          updatedTimeSpent[lastViewedProduct] = (updatedTimeSpent[lastViewedProduct] || 0) + timeDiff;
+        }
+      }
+
+      return {
+        ...prev,
+        viewedProducts: new Set([...prev.viewedProducts, productId]),
+        timeSpentOnProducts: updatedTimeSpent,
+        lastProductView: now,
+      };
+    });
+  }, []);
+
+  // Track category interactions
+  const trackCategoryInteraction = useCallback((category: string) => {
+    setBehaviorData(prev => ({
+      ...prev,
+      categoryInterests: {
+        ...prev.categoryInterests,
+        [category]: (prev.categoryInterests[category] || 0) + 1,
+      },
+    }));
+  }, []);
+
+  // Track search behavior
+  const trackSearch = useCallback((term: string) => {
+    setBehaviorData(prev => ({
+      ...prev,
+      searchHistory: [...prev.searchHistory, term],
+    }));
+  }, []);
+
+  // Debounced behavior update to backend
+  const updateBehavior = useCallback(
+    debounce(async (behavior: typeof behaviorData) => {
+      try {
+        await updateCustomerBehavior({
+          viewed_products: Array.from(behavior.viewedProducts),
+          time_spent: behavior.timeSpentOnProducts,
+          search_history: behavior.searchHistory,
+          category_interests: behavior.categoryInterests,
+        });
+      } catch (err) {
+        console.error('Failed to update behavior:', err);
+      }
+    }, 5000),
+    []
+  );
+
+  // Update backend when behavior changes
+  useEffect(() => {
+    updateBehavior(behaviorData);
+  }, [behaviorData, updateBehavior]);
 
   // Filter products based on search and category
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
+      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    
     return matchesSearch && matchesCategory;
   });
+
+  // Get unique categories from products
+  const categories = ['all', ...new Set(products.map(p => p.category))];
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    trackSearch(term);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    if (category !== 'all') {
+      trackCategoryInteraction(category);
+    }
+  };
 
   const handleVoiceSearch = (transcript: string) => {
     setSearchTerm(transcript);
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 text-lg">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -68,7 +178,7 @@ const Products: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
                 placeholder="Search products..."
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
@@ -76,7 +186,7 @@ const Products: React.FC = () => {
             </div>
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             >
               {categories.map(category => (
@@ -107,11 +217,13 @@ const Products: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map(product => (
-                <ProductCard
+                <div
                   key={product.id}
-                  product={product}
-                  showPsychographicMatch={true}
-                />
+                  onClick={() => trackProductView(product.id)}
+                  className="cursor-pointer"
+                >
+                  <ProductCard product={product} />
+                </div>
               ))}
             </div>
           )}
