@@ -1,62 +1,116 @@
 import React, { useState } from 'react';
-import { trackMood } from '../api/client';
-import './MoodSelector.css';
+import { Box, Typography, Slider, IconButton, Tooltip } from '@mui/material';
+import { 
+  SentimentVeryDissatisfied, 
+  SentimentDissatisfied, 
+  SentimentNeutral, 
+  SentimentSatisfied, 
+  SentimentVerySatisfied 
+} from '@mui/icons-material';
 
 interface MoodSelectorProps {
-  customerId: string;
-  onMoodChange: (mood: string) => Promise<void>;
+  onMoodChange: (mood: string) => void;
+  initialMood?: string;
 }
 
-const moods = [
-  { emoji: '😊', label: 'Happy' },
-  { emoji: '😐', label: 'Neutral' },
-  { emoji: '😔', label: 'Sad' },
-  { emoji: '😍', label: 'Excited' },
-  { emoji: '😤', label: 'Frustrated' },
-  { emoji: '😌', label: 'Relaxed' },
-];
+const moodIcons = {
+  'very_dissatisfied': <SentimentVeryDissatisfied color="error" />,
+  'dissatisfied': <SentimentDissatisfied color="warning" />,
+  'neutral': <SentimentNeutral color="action" />,
+  'satisfied': <SentimentSatisfied color="success" />,
+  'very_satisfied': <SentimentVerySatisfied color="success" />
+};
 
-const MoodSelector: React.FC<MoodSelectorProps> = ({ customerId, onMoodChange }) => {
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const moodLabels = {
+  'very_dissatisfied': 'Very Dissatisfied',
+  'dissatisfied': 'Dissatisfied',
+  'neutral': 'Neutral',
+  'satisfied': 'Satisfied',
+  'very_satisfied': 'Very Satisfied'
+};
 
-  const handleMoodSelect = async (mood: string) => {
-    try {
-      await trackMood(customerId, mood);
-      setSelectedMood(mood);
-      setError(null);
-      await onMoodChange(mood);
-    } catch (err) {
-      console.error('Failed to track mood:', err);
-      setError('Failed to update mood. Please try again.');
+const moodValues = {
+  'very_dissatisfied': 1,
+  'dissatisfied': 2,
+  'neutral': 3,
+  'satisfied': 4,
+  'very_satisfied': 5
+};
+
+const MoodSelector: React.FC<MoodSelectorProps> = ({ onMoodChange, initialMood = 'neutral' }) => {
+  const [mood, setMood] = useState<string>(initialMood);
+
+  const handleMoodChange = (newMood: string) => {
+    setMood(newMood);
+    onMoodChange(newMood);
+  };
+
+  const handleSliderChange = (event: Event, newValue: number | number[]) => {
+    const value = newValue as number;
+    const moodKey = Object.keys(moodValues).find(key => moodValues[key] === value);
+    if (moodKey) {
+      handleMoodChange(moodKey);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900">How are you feeling today?</h3>
-      <div className="flex flex-wrap gap-4">
-        {moods.map((mood) => (
-          <button
-            key={mood.label}
-            onClick={() => handleMoodSelect(mood.label)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-colors ${
-              selectedMood === mood.label
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
-                : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-            }`}
-          >
-            <span className="text-2xl">{mood.emoji}</span>
-            <span>{mood.label}</span>
-          </button>
+    <Box sx={{ width: '100%', maxWidth: 400, mx: 'auto', p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        How are you feeling today?
+      </Typography>
+      
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        {Object.entries(moodIcons).map(([key, icon]) => (
+          <Tooltip key={key} title={moodLabels[key]}>
+            <IconButton
+              onClick={() => handleMoodChange(key)}
+              color={mood === key ? 'primary' : 'default'}
+              sx={{ 
+                transform: mood === key ? 'scale(1.2)' : 'scale(1)',
+                transition: 'transform 0.2s'
+              }}
+            >
+              {icon}
+            </IconButton>
+          </Tooltip>
         ))}
-      </div>
-      {error && (
-        <div className="text-sm text-red-600">
-          {error}
-        </div>
-      )}
-    </div>
+      </Box>
+
+      <Slider
+        value={moodValues[mood]}
+        onChange={handleSliderChange}
+        min={1}
+        max={5}
+        step={1}
+        marks={[
+          { value: 1, label: '😠' },
+          { value: 2, label: '😕' },
+          { value: 3, label: '😐' },
+          { value: 4, label: '😊' },
+          { value: 5, label: '😄' }
+        ]}
+        valueLabelDisplay="auto"
+        sx={{
+          '& .MuiSlider-markLabel': {
+            fontSize: '1.5rem'
+          }
+        }}
+      />
+
+      <Typography 
+        variant="body1" 
+        align="center" 
+        sx={{ 
+          mt: 2,
+          color: mood === 'very_dissatisfied' ? 'error.main' :
+                 mood === 'dissatisfied' ? 'warning.main' :
+                 mood === 'neutral' ? 'text.secondary' :
+                 'success.main'
+        }}
+      >
+        {moodLabels[mood]}
+      </Typography>
+    </Box>
   );
 };
 

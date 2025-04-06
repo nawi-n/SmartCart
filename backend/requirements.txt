@@ -4,6 +4,7 @@ uvicorn==0.24.0
 sqlalchemy==2.0.23
 alembic==1.12.1
 pydantic==2.5.1
+pydantic-settings==2.1.0
 python-dotenv==1.0.0
 google-generativeai==0.3.1
 openai-whisper==20231117
@@ -28,3 +29,10 @@ black==23.11.0
 isort==5.12.0
 flake8==6.1.0
 mypy==1.7.1 
+
+python-jose
+passlib
+SpeechRecognition
+pyttsx3
+
+pypiwin32
