@@ -11,14 +11,18 @@ class CartService {
 
   constructor() {
     // Load cart from localStorage if available
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      this.cart = JSON.parse(savedCart);
+    if (typeof window !== 'undefined') {
+      const savedCart = localStorage.getItem('cart');
+      if (savedCart) {
+        this.cart = JSON.parse(savedCart);
+      }
     }
   }
 
   private saveCart() {
-    localStorage.setItem('cart', JSON.stringify(this.cart));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cart', JSON.stringify(this.cart));
+    }
     this.notifyListeners();
   }
 

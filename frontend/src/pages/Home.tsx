@@ -1,71 +1,71 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useCustomer } from '../contexts/CustomerContext';
+import Link from 'next/link';
+import { Box, Typography, Button, Grid } from '@mui/material';
+import { useAuth } from '../contexts/AuthContext';
 
-const Home: React.FC = () => {
-  const { customer } = useCustomer();
+const HomePage: React.FC = () => {
+  const { user } = useAuth();
 
   return (
-    <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-8">
+    <Box p={3}>
+      <Typography variant="h3" gutterBottom>
         Welcome to SmartCart
-      </h1>
-      <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
-        Your intelligent shopping companion powered by AI. Get personalized product
-        recommendations based on your unique profile and preferences.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        {!customer ? (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              Create Your Profile
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Start by creating your customer profile to get personalized
-              recommendations tailored just for you.
-            </p>
-            <Link
-              to="/customer"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Create Profile
+      </Typography>
+      <Typography variant="body1" paragraph>
+        Your personalized shopping experience powered by AI.
+      </Typography>
+
+      <Grid container spacing={3} mt={4}>
+        <Grid item xs={12} md={4}>
+          <Box p={3} border={1} borderColor="primary.main" borderRadius={2}>
+            <Typography variant="h5" gutterBottom>
+              Smart Recommendations
+            </Typography>
+            <Typography variant="body2" paragraph>
+              Get personalized product recommendations based on your preferences and behavior.
+            </Typography>
+            <Link href="/recommendations" passHref>
+              <Button variant="contained" color="primary">
+                View Recommendations
+              </Button>
             </Link>
-          </div>
-        ) : (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              View Recommendations
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Check out your personalized product recommendations based on your
-              profile.
-            </p>
-            <Link
-              to="/recommendations"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              See Recommendations
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Box p={3} border={1} borderColor="primary.main" borderRadius={2}>
+            <Typography variant="h5" gutterBottom>
+              Browse Products
+            </Typography>
+            <Typography variant="body2" paragraph>
+              Explore our wide range of products with smart search and filtering.
+            </Typography>
+            <Link href="/products" passHref>
+              <Button variant="contained" color="primary">
+                Shop Now
+              </Button>
             </Link>
-          </div>
-        )}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Browse Products
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Explore our catalog of products with detailed AI-generated profiles and
-            stories.
-          </p>
-          <Link
-            to="/products"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            View Products
-          </Link>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Box p={3} border={1} borderColor="primary.main" borderRadius={2}>
+            <Typography variant="h5" gutterBottom>
+              Your Profile
+            </Typography>
+            <Typography variant="body2" paragraph>
+              Manage your preferences and view your shopping history.
+            </Typography>
+            <Link href="/customer" passHref>
+              <Button variant="contained" color="primary">
+                View Profile
+              </Button>
+            </Link>
+          </Box>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 
-export default Home; 
+export default HomePage; 

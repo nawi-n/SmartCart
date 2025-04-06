@@ -6,17 +6,18 @@ import os
 import pandas as pd
 from typing import Dict, Any
 import json
+from sqlalchemy import text
 
-from src.routes.products import router as products_router
-from src.routes.recommendations import router as recommendations_router
-from src.routes.auth import router as auth_router
-from src.routes.voice import router as voice_router
-from src.routes.chat import router as chat_router
-from src.routes.cart import router as cart_router
-from src.routes.orders import router as orders_router
-from src.database import get_db, engine
-from src.models import Base, Customer, Product
-from src.config import settings
+from .routes.products import router as products_router
+from .routes.recommendations import router as recommendations_router
+from .routes.auth import router as auth_router
+from .routes.voice import router as voice_router
+from .routes.chat import router as chat_router
+from .routes.cart import router as cart_router
+from .routes.orders import router as orders_router
+from .database import get_db, engine
+from .models import Base, Customer, Product
+from .config import settings
 
 # Load environment variables
 load_dotenv()
@@ -31,10 +32,11 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],  # Frontend URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Initialize database
@@ -68,15 +70,28 @@ async def startup_event():
             db.add(customer)
         
         if db.query(Product).count() == 0:
-            # Create a sample product
+            # Create a sample product with all required fields
             product = Product(
                 product_id="PROD001",
                 name="Sample Product",
                 description="A great product for testing",
                 price=99.99,
                 category="Electronics",
+                subcategory="Gadgets",
+                brand="Sample Brand",
+                image_url="https://example.com/sample.jpg",
+                rating=4.5,
+                stock=100,
                 story="This is a sample product story",
-                product_metadata={"tags": ["sample", "test"]}
+                product_metadata={"tags": ["sample", "test"]},
+                average_rating_similar_products=4.2,
+                product_rating=4.5,
+                customer_review_sentiment_score=0.8,
+                holiday="None",
+                season="Spring",
+                geographical_location="Global",
+                similar_product_list={"products": ["PROD002", "PROD003"]},
+                probability_of_recommendation=0.9
             )
             db.add(product)
         
@@ -110,7 +125,7 @@ async def root():
 async def health_check(db: Session = Depends(get_db)):
     try:
         # Test database connection
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         return {
             "status": "healthy",
             "database": "connected",

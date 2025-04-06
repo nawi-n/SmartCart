@@ -1,78 +1,97 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { generateCustomerPersona } from '../api/client';
+import axios from 'axios';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
 
 interface AuthContextType {
-  customerId: string | null;
-  persona: any | null;
-  isLoading: boolean;
+  user: User | null;
+  loading: boolean;
   error: string | null;
-  login: (customerId: string) => Promise<void>;
-  logout: () => void;
-  restoreSession: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [persona, setPersona] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const persistSession = (id: string) => {
-    localStorage.setItem('customerId', id);
-    setCustomerId(id);
-  };
-
-  const clearSession = () => {
-    localStorage.removeItem('customerId');
-    setCustomerId(null);
-    setPersona(null);
-  };
-
-  const login = async (id: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Generate or fetch persona
-      const personaData = await generateCustomerPersona(id);
-      
-      persistSession(id);
-      setPersona(personaData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
-      clearSession();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = () => {
-    clearSession();
-  };
-
-  const restoreSession = async () => {
-    const storedId = localStorage.getItem('customerId');
-    if (storedId) {
-      await login(storedId);
-    }
-  };
-
   useEffect(() => {
-    restoreSession();
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await axios.get(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setUser(response.data);
+        }
+      } catch (err) {
+        localStorage.removeItem('token');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
+        email,
+        password
+      });
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      setUser(user);
+      setError(null);
+    } catch (err) {
+      setError('Invalid email or password');
+      throw err;
+    }
+  };
+
+  const logout = async () => {
+    localStorage.removeItem('token');
+    setUser(null);
+  };
+
+  const register = async (email: string, password: string, name: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
+        email,
+        password,
+        name
+      });
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      setUser(user);
+      setError(null);
+    } catch (err) {
+      setError('Registration failed');
+      throw err;
+    }
+  };
 
   return (
     <AuthContext.Provider
       value={{
-        customerId,
-        persona,
-        isLoading,
+        user,
+        loading,
         error,
         login,
         logout,
-        restoreSession
+        register
       }}
     >
       {children}

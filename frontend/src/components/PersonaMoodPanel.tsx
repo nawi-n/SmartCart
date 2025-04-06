@@ -7,6 +7,8 @@ import {
   Slider,
   IconButton,
   Grid,
+  Avatar,
+  Chip,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { customerService } from '../services/customerService';
@@ -19,6 +21,14 @@ import SentimentVeryDissatisfiedIcon from '@mui/icons-material/SentimentVeryDiss
 interface PersonaMoodPanelProps {
   onMoodChange?: (mood: number) => void;
 }
+
+const moodEmojis = {
+  1: { icon: SentimentVeryDissatisfiedIcon, label: 'Very Dissatisfied', color: 'error' },
+  2: { icon: SentimentDissatisfiedIcon, label: 'Dissatisfied', color: 'warning' },
+  3: { icon: SentimentNeutralIcon, label: 'Neutral', color: 'action' },
+  4: { icon: SentimentSatisfiedIcon, label: 'Satisfied', color: 'primary' },
+  5: { icon: SentimentVerySatisfiedIcon, label: 'Very Satisfied', color: 'success' },
+};
 
 export const PersonaMoodPanel: React.FC<PersonaMoodPanelProps> = ({ onMoodChange }) => {
   const { user } = useAuth();
@@ -49,20 +59,8 @@ export const PersonaMoodPanel: React.FC<PersonaMoodPanelProps> = ({ onMoodChange
   };
 
   const getMoodIcon = (value: number) => {
-    switch (value) {
-      case 1:
-        return <SentimentVeryDissatisfiedIcon color="error" />;
-      case 2:
-        return <SentimentDissatisfiedIcon color="warning" />;
-      case 3:
-        return <SentimentNeutralIcon color="action" />;
-      case 4:
-        return <SentimentSatisfiedIcon color="primary" />;
-      case 5:
-        return <SentimentVerySatisfiedIcon color="success" />;
-      default:
-        return <SentimentNeutralIcon color="action" />;
-    }
+    const { icon: Icon, color } = moodEmojis[value as keyof typeof moodEmojis];
+    return <Icon color={color as any} />;
   };
 
   if (!persona) {
@@ -70,32 +68,44 @@ export const PersonaMoodPanel: React.FC<PersonaMoodPanelProps> = ({ onMoodChange
   }
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <Card sx={{ mb: 2, borderRadius: 2, boxShadow: 3 }}>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
           Your Shopping Persona
         </Typography>
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Box>
-              <Typography variant="subtitle1">Preferences</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {persona.preferences}
+              <Typography variant="subtitle1" sx={{ fontWeight: 'medium', mb: 1 }}>
+                Shopping Preferences
               </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {persona.preferences.split(',').map((pref: string, index: number) => (
+                  <Chip
+                    key={index}
+                    label={pref.trim()}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                  />
+                ))}
+              </Box>
             </Box>
-            <Box mt={2}>
-              <Typography variant="subtitle1">Shopping Style</Typography>
-              <Typography variant="body2" color="text.secondary">
+            <Box mt={3}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'medium', mb: 1 }}>
+                Shopping Style
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                 {persona.shopping_style}
               </Typography>
             </Box>
           </Grid>
           <Grid item xs={12} md={6}>
             <Box>
-              <Typography variant="subtitle1" gutterBottom>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'medium', mb: 2 }}>
                 Current Mood
               </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
+              <Box sx={{ px: 2 }}>
                 <Slider
                   value={mood}
                   onChange={handleMoodChange}
@@ -103,11 +113,38 @@ export const PersonaMoodPanel: React.FC<PersonaMoodPanelProps> = ({ onMoodChange
                   max={5}
                   step={1}
                   marks
-                  sx={{ width: '80%' }}
+                  sx={{
+                    '& .MuiSlider-markLabel': {
+                      fontSize: '0.75rem',
+                    },
+                  }}
                 />
-                <IconButton>
-                  {getMoodIcon(mood)}
-                </IconButton>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                {Object.entries(moodEmojis).map(([value, { icon: Icon, label, color }]) => (
+                  <Box
+                    key={value}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      opacity: mood === Number(value) ? 1 : 0.5,
+                      transition: 'opacity 0.2s',
+                      '&:hover': {
+                        opacity: 1,
+                      },
+                    }}
+                    onClick={() => handleMoodChange({} as Event, Number(value))}
+                  >
+                    <IconButton>
+                      <Icon color={color as any} />
+                    </IconButton>
+                    <Typography variant="caption" sx={{ mt: 0.5 }}>
+                      {label}
+                    </Typography>
+                  </Box>
+                ))}
               </Box>
             </Box>
           </Grid>
