@@ -1,208 +1,160 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useCustomer } from '../contexts/CustomerContext';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   getRecommendations,
   getRecommendationExplanation,
   submitRecommendationFeedback,
-  Recommendation,
   ProductProfile,
 } from '../api/client';
 import ProductCard from '../components/ProductCard';
 
-interface RecommendationWithProduct extends Recommendation {
+interface RecommendationWithProduct {
+  id: string;
   product: ProductProfile;
+  score: number;
+  explanation: string;
 }
 
 const Recommendations: React.FC = () => {
-  const navigate = useNavigate();
-  const { customer } = useCustomer();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { customerId } = useParams<{ customerId: string }>();
   const [recommendations, setRecommendations] = useState<RecommendationWithProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [explanations, setExplanations] = useState<Record<string, string>>({});
 
-  const fetchRecommendations = useCallback(async () => {
-    if (!customer) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await getRecommendations(customer.id);
-      const recommendationsWithProducts = response.data.map(rec => ({
-        ...rec,
-        product: {
-          id: rec.product_id,
-          name: 'Loading...',
-          brand: '',
-          category: '',
-          features: [],
-          target_audience: [],
-          price_point: '',
-          unique_selling_points: [],
-          quality_level: '',
-          mood_tags: [],
-          story: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      }));
-      setRecommendations(recommendationsWithProducts);
-    } catch (err) {
-      setError('Failed to fetch recommendations. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [customer]);
-
   useEffect(() => {
-    if (!customer) {
-      navigate('/customer');
-      return;
-    }
+    const fetchRecommendations = async () => {
+      if (!customerId) return;
+
+      try {
+        const response = await getRecommendations(customerId);
+        const recommendationsWithProducts = response.data.map(product => ({
+          id: product.id,
+          product,
+          score: product.psychographic_match || 0,
+          explanation: '',
+        }));
+        setRecommendations(recommendationsWithProducts);
+      } catch (err) {
+        setError('Failed to fetch recommendations. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
     fetchRecommendations();
-  }, [customer, navigate, fetchRecommendations]);
+  }, [customerId]);
 
   const handleGetExplanation = async (productId: string) => {
-    if (!customer) return;
-
-    setLoading(true);
-    setError(null);
+    if (!customerId) return;
 
     try {
-      const response = await getRecommendationExplanation(customer.id, productId);
+      const response = await getRecommendationExplanation(customerId, productId);
       setExplanations(prev => ({
         ...prev,
         [productId]: response.data.explanation,
       }));
     } catch (err) {
-      setError('Failed to get recommendation explanation. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Failed to get explanation:', err);
     }
   };
 
-  const handleFeedback = async (productId: string, liked: boolean) => {
-    if (!customer) return;
+  const handleFeedback = async (productId: string, helpful: boolean) => {
+    if (!customerId) return;
 
     try {
-      await submitRecommendationFeedback(customer.id, productId, {
-        liked,
-        mood_accurate: true,
-        explanation_helpful: true,
+      await submitRecommendationFeedback(customerId, productId, {
+        helpful,
+        reason: helpful ? 'Matches my preferences' : 'Not what I was looking for',
       });
-      await fetchRecommendations();
     } catch (err) {
-      setError('Failed to submit feedback. Please try again.');
+      console.error('Failed to submit feedback:', err);
     }
   };
 
-  if (!customer) {
-    return null;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 text-lg">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Personalized Recommendations
-        </h1>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            Shopping as: {customer.name}
-          </span>
-          <span className="text-sm text-gray-600">
-            Mood: {customer.mood || 'Not specified'}
-          </span>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex justify-center py-8">
-          <div className="flex space-x-2">
-            <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce" />
-            <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce delay-100" />
-            <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce delay-200" />
-          </div>
-        </div>
-      )}
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Recommended Products</h1>
 
       <div className="grid grid-cols-1 gap-6">
         {recommendations.map(recommendation => (
-          <div key={recommendation.product_id} className="space-y-4">
-            <ProductCard 
+          <div key={recommendation.id} className="space-y-4">
+            <ProductCard
               product={recommendation.product}
               showPsychographicMatch={true}
             />
-            
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-between items-start mb-4">
+
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-600">
-                    Recommendation Score: {(recommendation.score * 100).toFixed(1)}%
+                    Match Score: {(recommendation.score * 100).toFixed(1)}%
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {recommendation.explanation}
-                  </p>
+                  {recommendation.explanation && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {recommendation.explanation}
+                    </p>
+                  )}
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => handleFeedback(recommendation.product_id, true)}
-                    disabled={loading}
+                    onClick={() => handleFeedback(recommendation.id, true)}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
-                    👍 Like
+                    Helpful
                   </button>
                   <button
-                    onClick={() => handleFeedback(recommendation.product_id, false)}
-                    disabled={loading}
+                    onClick={() => handleFeedback(recommendation.id, false)}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   >
-                    👎 Dislike
+                    Not Helpful
                   </button>
                 </div>
-              </div>
 
-              {!explanations[recommendation.product_id] ? (
-                <button
-                  onClick={() => handleGetExplanation(recommendation.product_id)}
-                  disabled={loading}
-                  className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                >
-                  Get Detailed Explanation
-                </button>
-              ) : (
-                <div className="mt-2">
-                  <h4 className="text-sm font-medium text-gray-900">
-                    Detailed Explanation:
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {explanations[recommendation.product_id]}
-                  </p>
-                </div>
-              )}
+                {!explanations[recommendation.id] ? (
+                  <button
+                    onClick={() => handleGetExplanation(recommendation.id)}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    Get Explanation
+                  </button>
+                ) : (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">
+                      Why we recommend this
+                    </h4>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {explanations[recommendation.id]}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}
       </div>
-
-      {!loading && recommendations.length === 0 && (
-        <p className="text-center text-gray-600 py-8">
-          No recommendations available. Try updating your profile or mood.
-        </p>
-      )}
     </div>
   );
 };

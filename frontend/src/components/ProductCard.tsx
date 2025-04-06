@@ -9,7 +9,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
-  showPsychographicMatch = true 
+  showPsychographicMatch = false 
 }) => {
   return (
     <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow">
@@ -22,10 +22,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </h3>
           <p className="text-sm text-gray-600">{product.brand}</p>
         </div>
-        {showPsychographicMatch && product.psychographic_match_score !== undefined && (
+        {showPsychographicMatch && product.psychographic_match !== undefined && (
           <div className="flex items-start">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              {Math.round(product.psychographic_match_score * 100)}% Match
+              {Math.round(product.psychographic_match * 100)}% Match
             </span>
           </div>
         )}

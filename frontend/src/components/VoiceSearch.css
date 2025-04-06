@@ -1,0 +1,47 @@
+.voice-search {
+  position: relative;
+  display: inline-block;
+}
+
+.voice-search-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 1.5rem;
+  transition: transform 0.2s ease;
+}
+
+.voice-search-button:hover {
+  transform: scale(1.1);
+}
+
+.voice-search-button.listening {
+  color: #4f46e5;
+  animation: pulse 1.5s infinite;
+}
+
+.error-message {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+} 

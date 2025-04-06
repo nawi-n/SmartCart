@@ -1,67 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { voiceSearch, ProductProfile } from '../api/client';
+import './VoiceSearch.css';
 
 interface VoiceSearchProps {
-  onTranscript: (transcript: string) => void;
+  onResults: (results: ProductProfile[]) => void;
 }
 
-const VoiceSearch: React.FC<VoiceSearchProps> = ({ onTranscript }) => {
+const VoiceSearch: React.FC<VoiceSearchProps> = ({ onResults }) => {
   const [isListening, setIsListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert('Voice search is not supported in your browser.');
-      return;
-    }
-
-    const recognition = new (window as any).webkitSpeechRecognition();
+  useEffect(() => {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
       setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      onTranscript(transcript);
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
+      setError(null);
     };
 
     recognition.onend = () => {
       setIsListening(false);
     };
 
-    recognition.start();
+    recognition.onerror = (event: SpeechRecognitionError) => {
+      setIsListening(false);
+      setError(`Error: ${event.error}`);
+    };
+
+    recognition.onresult = async (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      
+      try {
+        const response = await voiceSearch(transcript);
+        onResults(response.data);
+      } catch (err) {
+        setError(`Error: ${err instanceof Error ? err.message : 'Failed to search products'}`);
+      }
+    };
+
+    return () => {
+      recognition.abort();
+    };
+  }, [onResults]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.stop();
+    } else {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.start();
+    }
   };
 
   return (
-    <button
-      onClick={startListening}
-      disabled={isListening}
-      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-      title="Search by voice"
-    >
-      <svg
-        className={`w-5 h-5 ${
-          isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-indigo-600'
-        }`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+    <div className="voice-search">
+      <button
+        onClick={toggleListening}
+        className={`voice-search-button ${isListening ? 'listening' : ''}`}
+        aria-label={isListening ? 'Stop listening' : 'Start listening'}
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-        />
-      </svg>
-    </button>
+        {isListening ? 'Listening...' : '🎤'}
+      </button>
+      {error && <div className="error-message">{error}</div>}
+    </div>
   );
 };
 

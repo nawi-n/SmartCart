@@ -6,6 +6,7 @@ import ChatAssistant from '../components/ChatAssistant';
 import VoiceSearch from '../components/VoiceSearch';
 import { getProducts, updateCustomerBehavior } from '../api/client';
 import debounce from 'lodash/debounce';
+import MoodSelector from '../components/MoodSelector';
 
 const Products: React.FC = () => {
   const navigate = useNavigate();
@@ -16,12 +17,13 @@ const Products: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showChatAssistant, setShowChatAssistant] = useState(false);
   const [behaviorData, setBehaviorData] = useState({
-    viewedProducts: new Set<string>(),
+    viewedProducts: [] as string[],
     timeSpentOnProducts: {} as Record<string, number>,
     searchHistory: [] as string[],
     categoryInterests: {} as Record<string, number>,
     lastProductView: Date.now(),
   });
+  const [customerId] = useState('1'); // In a real app, this would come from auth context
 
   // Fetch products on component mount
   useEffect(() => {
@@ -49,8 +51,8 @@ const Products: React.FC = () => {
       
       // Update time spent on previous product if applicable
       const updatedTimeSpent = { ...prev.timeSpentOnProducts };
-      if (prev.viewedProducts.size > 0) {
-        const lastViewedProduct = Array.from(prev.viewedProducts).pop();
+      if (prev.viewedProducts.length > 0) {
+        const lastViewedProduct = prev.viewedProducts[prev.viewedProducts.length - 1];
         if (lastViewedProduct) {
           updatedTimeSpent[lastViewedProduct] = (updatedTimeSpent[lastViewedProduct] || 0) + timeDiff;
         }
@@ -58,7 +60,7 @@ const Products: React.FC = () => {
 
       return {
         ...prev,
-        viewedProducts: new Set([...prev.viewedProducts, productId]),
+        viewedProducts: [...prev.viewedProducts, productId],
         timeSpentOnProducts: updatedTimeSpent,
         lastProductView: now,
       };
@@ -89,7 +91,7 @@ const Products: React.FC = () => {
     debounce(async (behavior: typeof behaviorData) => {
       try {
         await updateCustomerBehavior({
-          viewed_products: Array.from(behavior.viewedProducts),
+          viewed_products: behavior.viewedProducts,
           time_spent: behavior.timeSpentOnProducts,
           search_history: behavior.searchHistory,
           category_interests: behavior.categoryInterests,
@@ -170,6 +172,8 @@ const Products: React.FC = () => {
         </button>
       </div>
 
+      <MoodSelector customerId={customerId} />
+
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-3/4">
           {/* Search and Filter Section */}
@@ -238,7 +242,7 @@ const Products: React.FC = () => {
         {/* Chat Assistant Sidebar */}
         {showChatAssistant && (
           <div className="w-full md:w-1/4">
-            <ChatAssistant customerId="current-user" />
+            <ChatAssistant customerId={customerId} />
           </div>
         )}
       </div>
